@@ -1,0 +1,46 @@
+1. To create json buffer:
+    char buf[200] = "";   // First define the buffer to hold the json string.
+    struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+    const char *result = "{\"foo\": 123, \"x\": [false, true], \"y\": \"hi\"}";
+    json_printf(&out, "{%Q: %d, x: [%B, %B], y: %Q}", "foo", 123, 0, -1, "hi");
+    ASSERT(strcmp(buf, result) == 0);
+
+    A second call of json_printf without reset out will concatenate to the end of the buffer:
+    size_t foo = 12;
+    json_printf(&out, "%zu %d", foo, 42);
+    this will make buf has content:
+    buf = "{\"foo\": 123, \"x\": [false, true], \"y\": \"hi\"}12 42"
+
+    Note: The created json string is in the out object: 
+    out.u.buf.buf is the buffer we created with char buf[200]
+    out.u.buf.size is the buffer size, which is 200 here
+    out.u.buf.len is the number of chars in the buffer, exclude the null terminator.
+    ! No need to manually add null terminator at out.u.buf.buf[out.u.buf.len], since the 
+    json_printf function will do it for us.
+
+    If want to print array, do it as follows:
+    struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+    double arr[] = {9.32156, 3.1415926};
+    json_printf(&out, "%M", json_printf_array, arr, sizeof(arr), sizeof(arr[0]),
+                "%.2lf"); // the arguments after json_printf_array are retrived in function json_printf_array
+    ASSERT(strcmp(buf, "[9.32, 3.14]") == 0);
+
+
+2. To parse incomming json strings:
+    const char* str = "{a:{b:4},c:\"abc\"}";
+    int b = 0;
+    char* c = NULL;
+    ASSERT(json_scanf(str, strlen(str), "{a:{b:%d},c:%Q}", &b, &c) == 2);
+    ASSERT(b == 4);
+    ASSERT(strcmp(c, "abc") == 0);
+    free(c); /* Note if the format specifier is %Q when parse string, then the buffer is
+                is malloced. User is responsible to free it !!! */
+            
+    On the other hand, if do not want to call malloc/free, cand use %s instead of %Q to parse
+    strings, in this case, a single string can not be longer than 100!
+    char rst[110] = "";  //Here even we declared rst has size of 110, it can actually only hold 100 chars.
+    ASSERT(json_scanf(str, strlen(str), "{a:{b:%d},c:%Q}", &b, rst) == 2);
+    ASSERT(strcmp(rst, "abc") == 0);
+    
+    The size limitation 100 is hard coded in function json_scanf_cb()
+    We can change it if necessary.
