@@ -568,6 +568,7 @@ int json_vprintf(struct json_out *out, const char *fmt, va_list xap) {
 
   while (*fmt != '\0') {
     if (strchr(":, \r\n\t[]{}\"", *fmt) != NULL) {
+      /* If any format character is in ":, \r\n\t[]{}\"", directly copy them */
       len += out->printer(out, fmt, 1);
       fmt++;
     } else if (fmt[0] == '%') {
@@ -575,20 +576,24 @@ int json_vprintf(struct json_out *out, const char *fmt, va_list xap) {
       size_t skip = 2;
 
       if (fmt[1] == 'l' && fmt[2] == 'l' && (fmt[3] == 'd' || fmt[3] == 'u')) {
+        /* %llu or %lld, for uint64 or int64 */
         int64_t val = va_arg(ap, int64_t);
         const char *fmt2 = fmt[3] == 'u' ? "%" UINT64_FMT : "%" INT64_FMT;
         snprintf(buf, sizeof(buf), fmt2, val);
         len += out->printer(out, buf, strlen(buf));
         skip += 2;
       } else if (fmt[1] == 'z' && fmt[2] == 'u') {
+        /* %zu, for unsigned long */
         size_t val = va_arg(ap, size_t);
         snprintf(buf, sizeof(buf), "%lu", (unsigned long) val);
         len += out->printer(out, buf, strlen(buf));
         skip += 1;
       } else if (fmt[1] == 'M') {
+        /* %M, can be used to print arraies, refer to unit_test.c in the frozen repo */
         json_printf_callback_t f = va_arg(ap, json_printf_callback_t);
         len += f(out, &ap);
       } else if (fmt[1] == 'B') {
+        /* %B, for bool */
         int val = va_arg(ap, int);
         const char *str = val ? "true" : "false";
         len += out->printer(out, str, strlen(str));
@@ -613,6 +618,7 @@ int json_vprintf(struct json_out *out, const char *fmt, va_list xap) {
         len += out->printer(out, quote, 1);
 #endif /* JSON_ENABLE_BASE64 */
       } else if (fmt[1] == 'Q' ||
+        /* %Q, for C literal string */
                  (fmt[1] == '.' && fmt[2] == '*' && fmt[3] == 'Q')) {
         size_t l = 0;
         const char *p;
@@ -733,6 +739,8 @@ int json_vprintf(struct json_out *out, const char *fmt, va_list xap) {
       }
       fmt += skip;
     } else if (*fmt == '_' || json_isalpha(*fmt)) {
+      /* A section in the formater starts with _, a-z, A-Z, and followed by _, a-z, A-Z, 0-9, 
+       * will be copied directly into the buffer, with enclosed by quotes */
       len += out->printer(out, quote, 1);
       while (*fmt == '_' || json_isalpha(*fmt) || json_isdigit(*fmt)) {
         len += out->printer(out, fmt, 1);
@@ -740,6 +748,7 @@ int json_vprintf(struct json_out *out, const char *fmt, va_list xap) {
       }
       len += out->printer(out, quote, 1);
     } else {
+      /* Other characters in the formater that not match above will directly be copied to buffer */
       len += out->printer(out, fmt, 1);
       fmt++;
     }
@@ -932,7 +941,9 @@ static void json_scanf_cb(void *callback_data, const char *name,
                           size_t name_len, const char *path,
                           const struct json_token *token) {
   struct json_scanf_info *info = (struct json_scanf_info *) callback_data;
-  char buf[32]; /* Must be enough to hold numbers */
+  char buf[101]; /* Must be enough to hold numbers and simple strings with format 
+                    with format specifier %s, long string should use %Q, which the
+                    buffer is malloced, user should call free(buffer) to de-allocate*/
 
   (void) name;
   (void) name_len;
