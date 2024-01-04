@@ -30,6 +30,6 @@ int main() {
 //    free(e);
 
     char rst[2560];
-    int a = json_scanf(str, strlen(str), "{e:%s}", rst);
+    int a = json_scanf(str, strlen(str), "{e :   %s}", rst);
     printf("%d  %lu  %s\n", a, strlen(rst), rst);
 }

@@ -30,7 +30,8 @@
     const char* str = "{a:{b:4},c:\"abc\"}";
     int b = 0;
     char* c = NULL;
-    ASSERT(json_scanf(str, strlen(str), "{a:{b:%d},c:%Q}", &b, &c) == 2);
+    ASSERT(json_scanf(str, strlen(str), "{a:{b:%d},c:%Q}", &b, &c) == 2); /* json_scanf returns
+    the number of successfully parsed items */
     ASSERT(b == 4);
     ASSERT(strcmp(c, "abc") == 0);
     free(c); /* Note if the format specifier is %Q when parse string, then the buffer is
@@ -39,8 +40,17 @@
     On the other hand, if do not want to call malloc/free, cand use %s instead of %Q to parse
     strings, in this case, a single string can not be longer than 100!
     char rst[110] = "";  //Here even we declared rst has size of 110, it can actually only hold 100 chars.
-    ASSERT(json_scanf(str, strlen(str), "{a:{b:%d},c:%Q}", &b, rst) == 2);
+    ASSERT(json_scanf(str, strlen(str), "{c :  %Q}", rst) == 1); /* Note here the format specifier
+    does not need to match the entire input string, but the curly braces are required, and 
+    spaces around : are not important */
     ASSERT(strcmp(rst, "abc") == 0);
     
     The size limitation 100 is hard coded in function json_scanf_cb()
     We can change it if necessary.
+
+    Every time when use json_scanf, it will go over the whole input string buffer. So it would be 
+    efficient to scan the all necessary variables. Like following if we want b and c:
+    int n_success = json_scanf(str, strlen(str), "{a:{b:%d},c:%Q}", &b, &c);
+    ASSERT(n == 2); 
+    /* Use this to verify that we have successfully scaned b and c, it does not need to 
+       scan all in the input buffer */
