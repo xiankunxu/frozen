@@ -1,3 +1,27 @@
+0. Note: 
+    It is IMPORT to make sure the format specifier and the receiving variable have compatible 
+    types in json_scanf. For example, 
+    uint32_t var;
+    json_scanf("{var: %u}", &var);
+    It will cause memory corruption if var is of type uint8_t. The reason is that json_scanf 
+    will finally call json_scanf_cb. Which write to the address of receiving variable based on
+    the format specifier. See below:
+      if (info->fmt[1] == 'u' ||
+                 (info->fmt[1] == 'l' && info->fmt[2] == 'u')) {
+        char *endptr = NULL;
+        unsigned long r = strtoul(buf, &endptr, 0 /* base */);
+        if (*endptr == '\0') {
+          if (info->fmt[1] == 'l') {
+            *((unsigned long *) info->target) = r;
+          } else {
+            *((unsigned int *) info->target) = (unsigned int) r;
+          }
+          info->num_conversions++;
+        }
+      }
+    Where info->target is the address of the receiving variable. If format specifier is %u, the
+    adrress started at &var with sizeof(unsigned int*) will be writen.
+
 1. To create json buffer:
     char buf[200] = "";   // First define the buffer to hold the json string.
     struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
@@ -40,7 +64,7 @@
     On the other hand, if do not want to call malloc/free, cand use %s instead of %Q to parse
     strings, in this case, a single string can not be longer than 100!
     char rst[110] = "";  //Here even we declared rst has size of 110, it can actually only hold 100 chars.
-    ASSERT(json_scanf(str, strlen(str), "{c :  %Q}", rst) == 1); /* Note here the format specifier
+    ASSERT(json_scanf(str, strlen(str), "{c :  %s}", rst) == 1); /* Note here the format specifier
     does not need to match the entire input string, but the curly braces are required, and 
     spaces around : are not important */
     ASSERT(strcmp(rst, "abc") == 0);
