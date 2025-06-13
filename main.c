@@ -58,14 +58,29 @@ int main() {
 
     char buf[200] = "";   // First define the buffer to hold the json string.
     struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+//    json_printf(&out, "%f, %.2f ", 1.36, 0.23);
     const char *result = "{\"foo\": 123, \"x\": [false, true], \"y\": \"hi\"}";
-    json_printf(&out, "{%Q: %d, x: [%B, %B], y: %Q}", "foo", 123, 0, -1, "hi");
+    int len = json_printf(&out, "{%Q: %d, x: [%B, %B], y: %Q, \"%d-%d-%d\"}", "foo", 123, 0, -1, "hi", 1, 2, 3);
+    printf("len = %d\n", len);
 //    ASSERT(strcmp(buf, result) == 0);
 
-    size_t foo = 12;
-    json_printf(&out, "%zu %d", foo, 42);
+//    size_t foo = 12;
+//    len = json_printf(&out, "%zu %d %f %f", foo, 42, 1.2, 2.3);
+//    printf("len = %d\n", len);
+
+    char* str = "ad;gha;fdklgdjagekl2!#$!%!$@%&*()_+|}{:<>?~`==+";
+    memcpy(buf + len, str, strlen(str));
+    len += strlen(str);
+    buf[len] = '\0';
 
     printf("%s\n", buf);
 
     Du_printf("You received: %s", buf);
+
+
+    int foo_int;
+    char rst[100] = "";
+    json_scanf(buf, strlen(buf), "{foo: %d, y: %s}", &foo_int, rst);
+
+    printf("foo = %d, rst = %s\n", foo_int, rst);
 }

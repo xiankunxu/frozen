@@ -78,3 +78,13 @@
     ASSERT(n == 2); 
     /* Use this to verify that we have successfully scaned b and c, it does not need to 
        scan all in the input buffer */
+
+3. The difference of encoding a string with %s and %Q
+   When use %s, the stirng will NOT have "" around it, making the resulted an invalid JSON string.
+   So need to use %Q instead of %s.
+
+
+
+
+
+
