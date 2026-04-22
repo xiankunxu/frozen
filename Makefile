@@ -1,6 +1,6 @@
 # Compiler and compiler flags
 CC := gcc
-CFLAGS := -Iinclude -g
+CFLAGS := -Iinclude -g # -DJSON_ENABLE_BASE64=1 JSON_ENABLE_BASE64 is by default enabled in json.h, so we don't need to define it here unless we want to disable it. 
 
 # Source files and output executable
 SRCDIR := .

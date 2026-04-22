@@ -62,6 +62,11 @@ int main() {
     const char *result = "{\"foo\": 123, \"x\": [false, true], \"y\": \"hi\"}";
     int len = json_printf(&out, "{%Q: %d, x: [%B, %B], y: %Q, \"%d-%d-%d\"}", "foo", 123, 0, -1, "hi", 1, 2, 3);
     printf("len = %d\n", len);
+    printf("buf = %s\n", buf);
+    len = json_printf(&out, "%zu %d", 12, 42);
+    printf("len = %d\n", len);
+    printf("buf = %s\n", buf);
+
 //    ASSERT(strcmp(buf, result) == 0);
 
 //    size_t foo = 12;
@@ -83,4 +88,52 @@ int main() {
     json_scanf(buf, strlen(buf), "{foo: %d, y: %s}", &foo_int, rst);
 
     printf("foo = %d, rst = %s\n", foo_int, rst);
+
+    str = "{a:{b:4}, cmd: 0x12, c:\"abc\"}";
+    char* a = NULL;
+    int b = 0;
+    char* c = NULL;
+    int cmd = 0;
+    len = json_scanf(str, strlen(str), "{a:%Q,{b:%d},c:%Q,cmd:%d}", &a, &b, &c, &cmd);
+    printf("a = %s, b = %d, c = %s, cmd = %d\n", a, b, c, cmd);
+    free(a);
+    free(c);
+
+    /* Test base64 encode/decode via the %V format specifier.
+     * Requires JSON_ENABLE_BASE64=1 (set in Makefile CFLAGS). */
+    {
+        char b64buf[256] = "";
+        struct json_out b64out = JSON_OUT_BUF(b64buf, sizeof(b64buf));
+        /* Arbitrary bytes including non-printable ones to ensure binary-safe round trip. */
+        const unsigned char original[] = {
+            0x00, 0x01, 0x02, 'H', 'e', 'l', 'l', 'o', ' ',
+            'B', '6', '4', '!', 0xff, 0xfe, 0x7f
+        };
+        int orig_len = (int) sizeof(original);
+        int n, i;
+        char *decoded = NULL;
+        int decoded_len = 0;
+
+        n = json_printf(&b64out, "{data: %V, note: %Q}", original, orig_len, "b64-test");
+        printf("b64 encoded (n=%d): %s\n", n, b64buf);
+
+        if (json_scanf(b64buf, strlen(b64buf), "{data: %V}", &decoded, &decoded_len) == 1) {
+            printf("b64 decoded_len = %d (orig_len = %d)\n", decoded_len, orig_len);
+            printf("b64 decoded bytes: ");
+            for (i = 0; i < decoded_len; i++) {
+                printf("%02x ", (unsigned char) decoded[i]);
+            }
+            printf("\n");
+
+            if (decoded_len == orig_len &&
+                memcmp(decoded, original, orig_len) == 0) {
+                printf("b64 roundtrip: PASSED\n");
+            } else {
+                printf("b64 roundtrip: FAILED\n");
+            }
+            free(decoded); // json_scanf_cb's 'V' case mallocs the decoded buffer, so we need to free it here.
+        } else {
+            printf("b64 roundtrip: FAILED (json_scanf did not convert %%V)\n");
+        }
+    }
 }
